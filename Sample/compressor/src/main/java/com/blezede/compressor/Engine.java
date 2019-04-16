@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.text.TextUtils;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -151,7 +152,8 @@ public class Engine {
 
         matrix.postRotate(angle);
 
-        matrix.postScale(radio, radio);
+        if (radio > 0)
+            matrix.postScale(radio, radio);
 
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
     }
