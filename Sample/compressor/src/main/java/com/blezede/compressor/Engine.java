@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.text.TextUtils;
 
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -19,25 +20,33 @@ import java.io.IOException;
 public class Engine {
 
     private static final String DOT = ".";
+    private static final String EMPTY_STRING = "";
 
     private static String prepare(String targetDir, Bitmap.CompressFormat compressFormat) {
         File target = new File(targetDir);
-        target.mkdirs();
-        return target.getAbsolutePath() + File.separator + System.currentTimeMillis() + DOT + compressFormat.name().toLowerCase();
+        boolean isMade = target.mkdirs();
+        if (isMade) {
+            return target.getAbsolutePath() + File.separator + System.currentTimeMillis() + DOT + compressFormat.name().toLowerCase();
+        }
+        return EMPTY_STRING;
     }
 
     public static String compress(InputStreamProvider source, String targetDirPath, Bitmap.CompressFormat compressFormat, float leastSize, float maxWidthOrHeight, float maxSize, int quality) {
         if (source == null || !new File(source.getPath()).exists() || TextUtils.isEmpty(targetDirPath) || compressFormat == null) {
-            return "";
+            return EMPTY_STRING;
         }
         String destPath = prepare(targetDirPath, compressFormat);
+        if (TextUtils.isEmpty(destPath)) {
+            return EMPTY_STRING;
+        }
         File src = new File(source.getPath());
         if (leastSize > 0 && src.length() <= leastSize) {
             return Common.copyFile(src.getAbsolutePath(), destPath);
         }
         Bitmap targetBitmap = null;
-        FileOutputStream out = null;
-        ByteArrayOutputStream baos = null;
+        FileOutputStream fileOps = null;
+        ByteArrayOutputStream byteArrayOps = null;
+        BufferedOutputStream bufferedOps = null;
         try {
             BitmapFactory.Options options = new BitmapFactory.Options();
             options.inJustDecodeBounds = true;
@@ -49,10 +58,13 @@ public class Engine {
             } else {
                 options.inSampleSize = computeSize(srcWidth, srcHeight);
             }
+            if (compressFormat != Bitmap.CompressFormat.PNG) {
+                options.inPreferredConfig = Bitmap.Config.RGB_565;
+            }
             options.inJustDecodeBounds = false;
             targetBitmap = BitmapFactory.decodeStream(source.open(), null, options);
             if (targetBitmap == null) {
-                return "";
+                return EMPTY_STRING;
             }
             float radio = 0;
             if (maxWidthOrHeight > 0 && (maxWidthOrHeight < targetBitmap.getHeight() || maxWidthOrHeight < targetBitmap.getWidth())) {
@@ -63,32 +75,38 @@ public class Engine {
             if (degree != 0 || radio != 0) {
                 targetBitmap = rotatingOrScaleImage(targetBitmap, degree, radio);
             }
-            baos = new ByteArrayOutputStream();
+            byteArrayOps = new ByteArrayOutputStream();
             int imgQuality = quality;
-            targetBitmap.compress(compressFormat, imgQuality, baos);
-            while (maxSize > 0 && baos.toByteArray().length > maxSize && imgQuality >= 10) {
-                baos.reset();
-                imgQuality -= 10;
-                targetBitmap.compress(compressFormat, imgQuality, baos);
+            targetBitmap.compress(compressFormat, imgQuality, byteArrayOps);
+            if (compressFormat != Bitmap.CompressFormat.PNG) {
+                while (maxSize > 0 && byteArrayOps.toByteArray().length > maxSize && imgQuality >= 10) {
+                    byteArrayOps.reset();
+                    imgQuality -= 10;
+                    targetBitmap.compress(compressFormat, imgQuality, byteArrayOps);
+                }
             }
-            out = new FileOutputStream(destPath);
-            out.write(baos.toByteArray());
-            out.flush();
+            fileOps = new FileOutputStream(destPath);
+            bufferedOps = new BufferedOutputStream(fileOps);
+            bufferedOps.write(byteArrayOps.toByteArray());
+            bufferedOps.flush();
         } catch (FileNotFoundException e) {
             e.printStackTrace();
-            return "";
+            return EMPTY_STRING;
         } catch (IOException e) {
             e.printStackTrace();
-            return "";
+            return EMPTY_STRING;
         } finally {
             try {
-                if (out != null) {
-                    out.close();
+                if (byteArrayOps != null) {
+                    byteArrayOps.close();
                 }
-                if (baos != null) {
-                    baos.close();
+                if (fileOps != null) {
+                    fileOps.close();
                 }
-                if (targetBitmap != null) {
+                if (bufferedOps != null) {
+                    bufferedOps.close();
+                }
+                if (targetBitmap != null && !targetBitmap.isRecycled()) {
                     targetBitmap.recycle();
                 }
             } catch (IOException ignored) {
@@ -114,12 +132,12 @@ public class Engine {
             } else if (longSide > 4990 && longSide < 10240) {
                 return 4;
             } else {
-                return longSide / 1280 == 0 ? 1 : longSide / 1280;
+                return longSide / 1280;
             }
         } else if (scale <= 0.5625 && scale > 0.5) {
             return longSide / 1280 == 0 ? 1 : longSide / 1280;
         } else {
-            return (int) Math.ceil(longSide / (1280.0 / scale));
+            return (int) Math.ceil(longSide / (1280.0 / scale)) + 1;
         }
     }
 

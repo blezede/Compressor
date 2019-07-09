@@ -113,7 +113,7 @@ public class Common {
                     break;
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            return 0;
         }
         return degree;
     }
