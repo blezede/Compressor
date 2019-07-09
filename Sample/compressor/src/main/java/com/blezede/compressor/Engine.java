@@ -78,12 +78,10 @@ public class Engine {
             byteArrayOps = new ByteArrayOutputStream();
             int imgQuality = quality;
             targetBitmap.compress(compressFormat, imgQuality, byteArrayOps);
-            if (compressFormat != Bitmap.CompressFormat.PNG) {
-                while (maxSize > 0 && byteArrayOps.toByteArray().length > maxSize && imgQuality >= 10) {
-                    byteArrayOps.reset();
-                    imgQuality -= 10;
-                    targetBitmap.compress(compressFormat, imgQuality, byteArrayOps);
-                }
+            while (maxSize > 0 && byteArrayOps.toByteArray().length > maxSize && imgQuality >= 10) {
+                byteArrayOps.reset();
+                imgQuality -= 10;
+                targetBitmap.compress(compressFormat, imgQuality, byteArrayOps);
             }
             fileOps = new FileOutputStream(destPath);
             bufferedOps = new BufferedOutputStream(fileOps);
