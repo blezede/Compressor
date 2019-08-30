@@ -166,7 +166,8 @@ public class Engine {
         }
         Matrix matrix = new Matrix();
 
-        matrix.postRotate(angle);
+        if (angle > 0)
+            matrix.postRotate(angle);
 
         if (radio > 0)
             matrix.postScale(radio, radio);

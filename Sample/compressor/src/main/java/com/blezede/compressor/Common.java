@@ -97,6 +97,7 @@ public class Common {
     }
 
     public static int readImageDegree(String path) {
+        if (path == null || path.length() == 0) return 0;
         int degree = 0;
         try {
             ExifInterface exifInterface = new ExifInterface(path);
@@ -126,6 +127,8 @@ public class Common {
      * @return boolean
      */
     public static String copyFile(String oldPath, String newPath) {
+        if (oldPath == null || oldPath.length() == 0 || newPath == null || newPath.length() == 0)
+            return "";
         File source = new File(oldPath);
         if (!source.exists()) {
             return "";
